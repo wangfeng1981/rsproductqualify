@@ -22,6 +22,8 @@ WPixelCoorTransformDirectly::~WPixelCoorTransformDirectly(){
 
 
 WPixelCoorTransformByProjection::WPixelCoorTransformByProjection(){
+    isFirstWgs84 = false;
+    isSecondWgs84 = false;
     valid = false;
 }
 bool WPixelCoorTransformByProjection::init(string filename1,string filename2)
@@ -39,6 +41,16 @@ bool WPixelCoorTransformByProjection::init(string filename1,string filename2)
         }else{
             memcpy( this->trans1 , pRaster1->getTrans() , 6*sizeof(double)) ;
             memcpy( this->trans2 , pRaster2->getTrans() , 6*sizeof(double)) ;
+            crswkt1 = pRaster1->getProj() ;//GEOGCS
+            crswkt2 = pRaster2->getProj() ;
+            if( crswkt1.length()>6 && crswkt1.substr(0,6).compare("GEOGCS")==0 )
+            {
+                isFirstWgs84=true;
+            }
+            if( crswkt2.length()>6 && crswkt2.substr(0,6).compare("GEOGCS")==0 )
+            {
+                isSecondWgs84=true;
+            }
             valid = true ;
         }
         if( pRaster1 ) delete pRaster1 ; pRaster1 = 0 ;
@@ -53,9 +65,22 @@ bool WPixelCoorTransformByProjection::transform(int x1, int y1, int & retx2, int
     if( this->valid==false ) return false;
     double coorx1 = trans1[0] + trans1[1]*(x1+0.5) ;
     double coory1 = trans1[3] + trans1[5]*(y1+0.5) ;
+
+    //if CRS is WGS84, use Latitude first, Longitude second.
     double coorx2 = 0 ;
     double coory2 = 0 ;
+    if(isFirstWgs84){
+        double temp1 = coory1 ;
+        coory1 = coorx1 ;
+        coorx1 = temp1 ;
+    }
     bool convertOk = this->converter.convert(coorx1,coory1,  coorx2,coory2) ;
+    if(isSecondWgs84){
+        //if second CRS is WGS84 , reverse x2 and y2.
+        double temp1 = coory2 ;
+        coory2 = coorx2 ;
+        coorx2 = temp1 ;
+    }
     if( convertOk==false ) return false;
     retx2 = (coorx2 - trans2[0])/trans2[1];
     rety2 = (coory2 - trans2[3])/trans2[5];

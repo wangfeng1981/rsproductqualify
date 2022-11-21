@@ -4,6 +4,11 @@
 #include <string>
 #include "../sharedcodes2/wogrcoorconverter.h"
 #include "maskvaluevalidator.h"
+#include <iostream>
+#include <QDebug>
+
+using std::cout;
+using std::endl;
 
 class wGdalRaster ;
 
@@ -65,6 +70,8 @@ private:
     double trans1[6] ;
     double trans2[6] ;
     wOGRCoorConverter converter ;
+    bool isFirstWgs84, isSecondWgs84 ;
+    string crswkt1,crswkt2 ;
 };
 
 

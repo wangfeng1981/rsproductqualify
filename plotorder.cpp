@@ -74,6 +74,8 @@ bool PlotOrder::writeToJsonFile(QString filename)
 
     root["matchingCount"] = matchingCount ;
 
+    root["matcher"] = matcher.toStdString() ;
+
     string outtext ;
     root.prettyPrintTo(outtext) ;
     std::ofstream ofs(filename.toStdString().c_str());

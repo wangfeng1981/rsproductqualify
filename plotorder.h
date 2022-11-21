@@ -48,6 +48,8 @@ public:
 
     int matchingCount ;
 
+    QString matcher;
+
     bool writeToJsonFile(QString filename) ;
 };
 

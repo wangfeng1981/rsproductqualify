@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     GDALAllRegister() ;
 
 
-    setWindowTitle("遥感数据质量检验（图像对图像）V1.0.1") ;
+    setWindowTitle("遥感数据质量检验（图像对图像）V1.0.2") ;
 
     QObject::connect( wProcessQueue::getInstance() , &wProcessQueue::progressChanged,
                       this,&MainWindow::progressChanged ) ;
@@ -365,23 +365,7 @@ void MainWindow::on_pushButtonOk_clicked()
                 order1.reldiffrawfilename = outdir + outbasename + "-reldiff.raw" ;
                 order1.diffrasterfilename = outdir + outbasename + "-diff.tif" ;
 
-//                string filenameIn,string filenameRe,
-//                int inBandIndex,int reBandIndex,
-//                bool useProjectionCoordinate , //true for projection coordinate, false for image coordinate
-//                double valid0in ,double valid1in , double slopein, double offsetin,
-//                double valid0re ,double valid1re , double slopere, double offsetre,
-//                int histCount,
-//                int usePerFileMask, //0-not use, 1-use
-//                string inmaskfilename, string remaskfilename ,
-//                MaskValueValidator& inMvv,MaskValueValidator& reMvv,
-//                int useGlobalMask,//0-not use, 1-use
-//                string globalmaskfilename,
-//                MaskValueValidator& globalMvv,
-//                string indatarawfilename , string redatarawfilename ,//for scatter
-//                string diffrawfilename, string relerrrawfilename,//for hist
-//                string diffrasterfilename, //tiff output
-//                int& matchingCount ,
-//                string& error
+                order1.matcher = matcher ;
 
                 string comapreError;
                 bool cok = WRasterCompare::Compare2(
@@ -412,6 +396,11 @@ void MainWindow::on_pushButtonOk_clicked()
 
                 order1.writeToJsonFile(order1filename) ;
 
+                //call python
+                QString cmd1 = order1.pythonexe + " " + order1.scriptpy + " " + order1filename ;
+                spdlog::info("begin call command:{}" , cmd1.toStdString());
+                int ret = system(cmd1.toStdString().c_str()) ;
+                spdlog::info("command return code:{}" , ret);
             }
         }
     } catch (std::logic_error& ex) {
