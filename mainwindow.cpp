@@ -24,7 +24,12 @@ MainWindow::MainWindow(QWidget *parent)
     GDALAllRegister() ;
 
 
-    setWindowTitle("遥感数据质量检验（图像对图像）V1.0.2") ;
+    // setWindowTitle("遥感数据质量检验（图像对图像）V1.0.2") ;
+
+    // 2023-1-9
+    // 1.图像坐标对比，直接把输入数据坐标写入结果影像
+    // 2.增加无效值输出
+    setWindowTitle("遥感数据质量检验（图像对图像）V1.1.0") ;
 
     QObject::connect( wProcessQueue::getInstance() , &wProcessQueue::progressChanged,
                       this,&MainWindow::progressChanged ) ;
@@ -140,6 +145,11 @@ void MainWindow::on_pushButtonOk_clicked()
         int bandindexIn = ui->comboBoxBandIn->currentIndex();
 
         // //// in end -----------------------
+
+        // ////// out fill value /////////////
+        double outFillvalue = as.getDouble(ui->lineEditOutFillvalue,"Output Fill Value") ;
+
+        // ////// out fill value end ---------
 
 
         //  ref ///////////////
@@ -387,6 +397,7 @@ void MainWindow::on_pushButtonOk_clicked()
                             order1.reldiffrawfilename.toStdString(),
                             order1.diffrasterfilename.toStdString(),
                             order1.matchingCount,
+                            outFillvalue,
                             comapreError
                             ) ;
                 if( cok==false ){

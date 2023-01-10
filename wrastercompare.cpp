@@ -496,6 +496,7 @@ bool WRasterCompare::Compare2(
             string diffrawfilename, string relerrrawfilename,//for hist
             string diffrasterfilename, //tiff output
             int& matchingCount ,
+            double outFillvalue,
             string& error
             )
 {
@@ -604,7 +605,8 @@ bool WRasterCompare::Compare2(
         if( pGlobalMask ) delete pGlobalMask ;
         return false;
     }
-    if( useProjectionCoordinate ){
+    //2023-1-9 use input proj and trans without useProjectionCoordinate
+    if(true) { // if( useProjectionCoordinate ){
         diffRaster.copyProj( pRaster1->getProj() ) ;
         diffRaster.copyTrans(pRaster1->getTrans());
     }
@@ -770,18 +772,28 @@ bool WRasterCompare::Compare2(
                             }
 
                         }//if( value2 >= valid0re && value2 <= valid1re )
-
+                        else {
+                            diffRaster.setValuef(ix1,iy1,0,outFillvalue) ;
+                        }
                     }//if( inside2Ok )
+                    else {
+                        diffRaster.setValuef(ix1,iy1,0,outFillvalue) ;
+                    }
                 }//if( trans2ok )
-
+                else {
+                    diffRaster.setValuef(ix1,iy1,0,outFillvalue) ;
+                }
             }//if( value1 >= valid0in && value1 <= valid1in )
+            else {
+                diffRaster.setValuef(ix1,iy1,0,outFillvalue) ;
+            }
         }//for(int ix1 = 0 ; ix1 < xsize1 ; ++ix1 )
 
         //write into files
         if( tempIndataVec.size() > 0 ){
-            fwrite( (void*)tempIndataVec.data() , 4 , tempIndataVec.size(), pf_rawin) ;
+            fwrite( (void*)tempIndataVec.data()  , 4 , tempIndataVec.size(), pf_rawin) ;
             fwrite( (void*)tempRefdataVec.data() , 4 , tempRefdataVec.size(), pf_rawref) ;
-            fwrite( (void*)tempDiffVec.data() , 4 , tempDiffVec.size(), pf_diff) ;
+            fwrite( (void*)tempDiffVec.data()    , 4 , tempDiffVec.size(), pf_diff) ;
         }
         if( tempReVec.size() >0 ){
             fwrite( (void*)tempReVec.data() , 4 , tempReVec.size(), pf_rdiff) ;

@@ -96,6 +96,7 @@ public:
                         void* objPtr) ;
 
     //2022-11-15 in - ref
+    //2023-1-9 add outfillvalue
     static bool Compare2(
         string filenameIn,string filenameRe,
         int inBandIndex,int reBandIndex,
@@ -113,6 +114,7 @@ public:
         string diffrawfilename, string relerrrawfilename,//for hist
         string diffrasterfilename, //tiff output
         int& matchingCount ,
+        double outFillvalue,
         string& error
         ) ;
 
