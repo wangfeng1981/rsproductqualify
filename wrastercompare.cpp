@@ -194,7 +194,7 @@ bool WRasterCompare::PixelCoorInsideImage(int ix,int iy,int xsize,int ysize)
 
 }
 
-
+//deprecated 2023-3-2
 bool WRasterCompare::Compare(
     string filename1,string filename2,
     int inBandIndex,int reBandIndex,
@@ -486,16 +486,28 @@ bool WRasterCompare::Compare2(
             double valid0in ,double valid1in , double slopein, double offsetin,
             double valid0re ,double valid1re , double slopere, double offsetre,
             int histCount,
+            double histXmin,
+            double histXmax,
             int usePerFileMask, //0-not use, 1-use
             string inmaskfilename, string remaskfilename ,
             MaskValueValidator& inMvv,MaskValueValidator& reMvv,
             int useGlobalMask,//0-not use, 1-use
             string globalmaskfilename,
             MaskValueValidator& globalMvv,
-            string indatarawfilename , string redatarawfilename ,//for scatter
-            string diffrawfilename, string relerrrawfilename,//for hist
+            string in_vs_reftextfile , //for scatter
+            string difftextfile      , //for hist
+            string heattextfile      , //for scatter
+            double scatterXmin,
+            double scatterXmax ,
+            double scatterYmin,
+            double scatterYmax,
             string diffrasterfilename, //tiff output
             int& matchingCount ,
+            double& correlation , // Pearson Correction
+            double& rsquared    , //r2
+            double& linearK     , // y=kx+b
+            double& linearB     ,
+            double& rmse        ,
             double outFillvalue,
             string& error
             )
@@ -503,7 +515,7 @@ bool WRasterCompare::Compare2(
     spdlog::info("begin openning {} - {}" , filenameIn,filenameRe);
     wGdalRaster* pRaster1 = wGdalRasterFactory::OpenFile(filenameIn) ;
     wGdalRaster* pRaster2 = wGdalRasterFactory::OpenFile(filenameRe) ;
-
+    matchingCount = 0 ;
     if( pRaster1==0 || pRaster2 ==0 ){
         if( pRaster1 ) delete pRaster1 ;
         if( pRaster2 ) delete pRaster2 ;
@@ -660,17 +672,15 @@ bool WRasterCompare::Compare2(
         }
     }
 
-    FILE* pf_rawin = fopen( indatarawfilename.c_str() , "wb") ;
-    FILE* pf_rawref = fopen( redatarawfilename.c_str(),"wb") ;
-    FILE* pf_diff = fopen( diffrawfilename.c_str(),"wb" ) ;
-    FILE* pf_rdiff = fopen( relerrrawfilename.c_str(),"wb") ;
-    if( pf_rawin==0 || pf_rawref==0 || pf_diff==0 || pf_rdiff==0 )
+    FILE* pf_inref = fopen( in_vs_reftextfile.c_str() , "w") ;
+    FILE* pf_diff =  fopen(  difftextfile.c_str()     ,"w" ) ;
+    FILE* pf_heat =  fopen(  heattextfile.c_str()     ,"w" ) ;
+    if( pf_inref==0 || pf_diff==0 || pf_heat==0 )
     {
-        error = "open rawin or rawref failed." ;
-        if(pf_rawin) fclose(pf_rawin) ;
-        if( pf_rawref) fclose(pf_rawref) ;
-        if(pf_diff) fclose(pf_diff) ;
-        if(pf_rdiff) fclose(pf_rdiff) ;
+        error = "open text file for writing failed." ;
+        if(pf_inref) fclose(pf_inref) ;
+        if( pf_diff) fclose(pf_diff) ;
+        if( pf_heat) fclose(pf_heat) ;
         if( pRaster1 ) delete pRaster1 ;
         if( pRaster2 ) delete pRaster2 ;
         if( pRasterInMask ) delete pRasterInMask ;
@@ -682,25 +692,48 @@ bool WRasterCompare::Compare2(
     //number of match pixel
     int numberOfMatchPixel = 0 ;
     int progress0 = -1 ;
+    rmse = 0 ;
 
-    vector<float> tempIndataVec ,tempRefdataVec ;
-    tempIndataVec.reserve(xsize1) ;
-    tempRefdataVec.reserve(xsize1) ;
+    // 保存偏差直方图
+    histCount = max(histCount,1) ;
+    float dHistStep = ( histXmax - histXmin ) / histCount ;
+    vector<int> histCounterVec(histCount, 0) ;
 
-    vector<float> tempDiffVec ;
-    vector<float> tempReVec ;
+    // 散点图背景密度热力图
+    const int heatxsize = 100 ;
+    const int heatysize = 100 ;
+    vector<int> heatImage(heatxsize*heatysize,0) ;
+    double scatterDx = (scatterXmax - scatterXmin)/heatxsize ;
+    double scatterDy = (scatterYmax - scatterYmin)/heatysize ;
 
-    tempDiffVec.reserve(xsize1) ;
-    tempReVec.reserve(xsize1) ;
+    // 输入和参考数据打印格式
+    char format1[64];
+    double realMin = (valid0in +offsetin)*slopein ;
+    double realMax = (valid1in +offsetin)*slopein ;
+    if( fabs(realMax-realMin) < 0.1 ){
+        strcpy_s( format1 , "%f %f\n" ) ;
+    }else if( fabs(realMax-realMin) < 5 )
+    {
+        strcpy_s( format1 , "%.4f %.4f\n" ) ;
+    }else if( fabs(realMax-realMin) < 50 )
+    {
+        strcpy_s( format1 , "%.3f %.3f\n" ) ;
+    }else if( fabs(realMax-realMin) < 500 )
+    {
+        strcpy_s( format1 , "%.1f %.1f\n" ) ;
+    }else{
+        strcpy_s( format1 , "%f %f\n" ) ;
+    }
 
+    //计算相关系数
+    vector<float> xdata ;
+    vector<float> ydata ;
+    xdata.reserve( xsize1*ysize1/10 ) ;
+    ydata.reserve( xsize1*ysize1/10 ) ;
 
     //for each pixel from 1
     for(int iy1 = 0 ; iy1 < ysize1 ; ++iy1 )
     {
-        tempIndataVec.clear() ;
-        tempRefdataVec.clear() ;
-        tempDiffVec.clear() ;
-        tempReVec.clear() ;
         for(int ix1 = 0 ; ix1 < xsize1 ; ++ix1 )
         {
             //value1 ok?
@@ -759,18 +792,32 @@ bool WRasterCompare::Compare2(
                             float realvalue1 = (value1+offsetin)*slopein ;
                             float realvalue2 = (value2+offsetre)*slopere ;
                             float diff1 = realvalue1 - realvalue2 ;
-                            tempDiffVec.push_back(diff1) ;
+                            //输入数据和输出数据写入散点图文件
+                            fprintf( pf_inref , format1 , realvalue1 , realvalue2 ) ;
+                            xdata.push_back(realvalue1);
+                            ydata.push_back(realvalue2) ;
 
-                            diffRaster.setValuef(ix1,iy1,0,diff1) ;
-
-                            tempIndataVec.push_back(realvalue1) ;
-                            tempRefdataVec.push_back(realvalue2) ;
-
-                            if( realvalue2 != 0 ){
-                                float re1 = diff1 / realvalue2 ;
-                                tempReVec.push_back(re1) ;
+                            //写入像素密度数组
+                            int iheatx = (realvalue1 - scatterXmin)/scatterDx ;
+                            int iheaty = (realvalue2 - scatterYmin)/scatterDy ;
+                            if( iheatx>=0 && iheatx < heatxsize && iheaty>=0 && iheaty < heatysize )
+                            {
+                                int itheat = iheaty*heatxsize + iheatx ;
+                                ++ heatImage[itheat] ;
                             }
 
+                            //写入空间差异影像
+                            diffRaster.setValuef(ix1,iy1,0,diff1) ;
+
+                            //直方图计算
+                            int ihist = (diff1 - histXmin)/dHistStep ;
+                            if(ihist>=0 && ihist < histCount )
+                            {
+                                ++ histCounterVec[ihist] ;
+                            }
+
+                            //均方根误差
+                            rmse += diff1*diff1 ;
                         }//if( value2 >= valid0re && value2 <= valid1re )
                         else {
                             diffRaster.setValuef(ix1,iy1,0,outFillvalue) ;
@@ -789,29 +836,54 @@ bool WRasterCompare::Compare2(
             }
         }//for(int ix1 = 0 ; ix1 < xsize1 ; ++ix1 )
 
-        //write into files
-        if( tempIndataVec.size() > 0 ){
-            fwrite( (void*)tempIndataVec.data()  , 4 , tempIndataVec.size(), pf_rawin) ;
-            fwrite( (void*)tempRefdataVec.data() , 4 , tempRefdataVec.size(), pf_rawref) ;
-            fwrite( (void*)tempDiffVec.data()    , 4 , tempDiffVec.size(), pf_diff) ;
-        }
-        if( tempReVec.size() >0 ){
-            fwrite( (void*)tempReVec.data() , 4 , tempReVec.size(), pf_rdiff) ;
-        }
-
-
         //progress
         int progress1 = iy1 * 100.f / ysize1 ;
         if( progress1 != progress0 ){
             progress0 = progress1 ;
         }
-
     }
 
-    if(pf_rawin) fclose(pf_rawin) ;
-    if( pf_rawref) fclose(pf_rawref) ;
+    // 配对的样本数量
+    matchingCount = numberOfMatchPixel ;
+
+    //写入直方图
+    for(int ih = 0 ; ih < histCount; ++ ih )
+    {
+        fprintf(pf_diff , "%f %d\n" , histXmin+ih*dHistStep+dHistStep/2 , histCounterVec[ih] ) ;
+    }
+    //写入密度文本文件
+    for(int ihy = 0 ; ihy < heatysize; ++ ihy )
+    {
+        float heaty = scatterYmin + ihy * scatterDy + scatterDy/2 ;
+        for(int ihx = 0 ; ihx < heatxsize; ++ ihx )
+        {
+            float heatx = scatterXmin + ihx * scatterDx + scatterDx/2 ;
+            int itheat = ihy * heatxsize + ihx ;
+            fprintf(pf_heat , "%f %f %d\n" , heatx, heaty , heatImage[itheat] ) ;
+        }
+        fprintf(pf_heat,"\n") ;
+    }
+
+    //计算线性拟合和相关系数
+    if( matchingCount>0 )
+    {
+        slr slr1( xdata , ydata ) ;
+        correlation = slr1.r ;
+        rsquared = slr1.rsquared ;
+        linearK = slr1.beta ;
+        linearB = slr1.alpha ;
+
+        rmse = sqrt(rmse / matchingCount) ;
+    }else{
+        correlation = -999.0 ;
+        rsquared = -999.0 ;
+        linearK = -999.0 ;
+        linearB = -999.0 ;
+        rmse = -999.0 ;
+    }
+    if(pf_inref) fclose(pf_inref) ;
     if( pf_diff) fclose(pf_diff) ;
-    if( pf_rdiff) fclose(pf_rdiff) ;
+    if( pf_heat) fclose(pf_heat) ;
     if( pRaster1 ) delete pRaster1 ;
     if( pRaster2 ) delete pRaster2 ;
     if( pRasterInMask ) delete pRasterInMask ;

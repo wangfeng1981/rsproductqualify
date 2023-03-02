@@ -6,6 +6,8 @@
 #include "maskvaluevalidator.h"
 #include <iostream>
 #include <QDebug>
+#include <cmath>
+#include "simple_linear_regression.h"
 
 using std::cout;
 using std::endl;
@@ -104,16 +106,28 @@ public:
         double valid0in ,double valid1in , double slopein, double offsetin,
         double valid0re ,double valid1re , double slopere, double offsetre,
         int histCount,
+        double histXmin,
+        double histXmax,
         int usePerFileMask, //0-not use, 1-use
         string inmaskfilename, string remaskfilename ,
         MaskValueValidator& inMvv,MaskValueValidator& reMvv,
         int useGlobalMask,//0-not use, 1-use
         string globalmaskfilename,
         MaskValueValidator& globalMvv,
-        string indatarawfilename , string redatarawfilename ,//for scatter
-        string diffrawfilename, string relerrrawfilename,//for hist
+        string in_vs_reftextfile , //for scatter
+        string difftextfile      , //for hist
+        string heattextfile      , //for scatter heatmap
+        double scatterXmin,
+        double scatterXmax ,
+        double scatterYmin,
+        double scatterYmax,
         string diffrasterfilename, //tiff output
-        int& matchingCount ,
+        int& matchingCount , //匹配上的样点数量
+        double& correlation , // Pearson Correction
+        double& rsquared    , //r2
+        double& linearK     , // y=kx+b
+        double& linearB     ,
+        double& rmse ,//均方根误差
         double outFillvalue,
         string& error
         ) ;

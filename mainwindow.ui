@@ -372,9 +372,9 @@
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButtonOpenPython">
+            <widget class="QPushButton" name="pushButtonOpenGnuplot">
              <property name="text">
-              <string>浏览</string>
+              <string>浏览Gnuplot</string>
              </property>
             </widget>
            </item>
@@ -408,35 +408,35 @@
            <item>
             <widget class="QLabel" name="label_20">
              <property name="text">
-              <string>Python.exe</string>
+              <string>GNUPlot:</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="lineEditPython">
+            <widget class="QLineEdit" name="lineEditGnuplot">
              <property name="text">
-              <string>python.exe</string>
+              <string>gnuplot.exe</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLabel" name="label_23">
              <property name="text">
-              <string>脚本(*.py)</string>
+              <string>脚本(*.plt)</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="lineEditScriptPy">
+            <widget class="QLineEdit" name="lineEditScriptPlot">
              <property name="text">
-              <string>plots.py</string>
+              <string>plots.plt</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QPushButton" name="pushButtonOpenScript">
              <property name="text">
-              <string>浏览</string>
+              <string>浏览plt脚本</string>
              </property>
             </widget>
            </item>
@@ -922,7 +922,7 @@
         <property name="title">
          <string>输出文件</string>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_6">
+        <layout class="QVBoxLayout" name="verticalLayout_9">
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
@@ -940,6 +940,27 @@
            </item>
            <item>
             <widget class="QPushButton" name="pushButtonOpenOutfile">
+             <property name="text">
+              <string>浏览</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_20">
+           <item>
+            <widget class="QLabel" name="label_39">
+             <property name="text">
+              <string>统计结果汇总输出CSV</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="lineEditOutCSV"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pushButtonOpenOutCSV">
              <property name="text">
               <string>浏览</string>
              </property>
@@ -1007,12 +1028,30 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menu_2">
+    <property name="title">
+     <string>文件</string>
+    </property>
+    <addaction name="actionLoad"/>
+    <addaction name="actionSave"/>
+   </widget>
+   <addaction name="menu_2"/>
    <addaction name="menu"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionLoad">
+   <property name="text">
+    <string>载入质检方案</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="text">
+    <string>保存质检方案</string>
    </property>
   </action>
  </widget>

@@ -42,8 +42,6 @@ private slots:
 
     void progressChanged(int type, int doneTaskCnt,int totalTaskCnt, int progressOrStatus, QString currTaskDoneInfo );
 
-    void on_pushButtonOpenPython_clicked();
-
     void on_pushButtonOpenScript_clicked();
 
     void on_pushButtonAddInMask_clicked();
@@ -53,6 +51,10 @@ private slots:
     void on_pushButtonAddReMask_clicked();
 
     void on_pushButtonClearReMask_clicked();
+
+    void on_pushButtonOpenGnuplot_clicked();
+
+    void on_pushButtonOpenOutCSV_clicked();
 
 private:
     Ui::MainWindow *ui;

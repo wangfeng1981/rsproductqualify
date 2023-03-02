@@ -20,9 +20,9 @@ public:
     double slopein,interin,sloperef,interref ;
     int bandin,bandref ;
     int useProj ; //0-use image coordinate; 1-use projection coordinate
-    QString inTag, reTag , pythonexe ;
+    QString inTag, reTag , gnuplotexe ;
     QString xlabel,ylabel ;//scatter fig
-    QString scriptpy ;
+    QString plotscriptfile ;
     double scatterXmin,scatterXmax,scatterYmin,scatterYmax ;
     double histXmin,histXmax,histCount ;//error hist x range and hist count.
 
@@ -42,11 +42,24 @@ public:
     QString outbasename ;
 
     //output results
-    QString indatarawfilename, refdatarawfilename ;//for scatter
-    QString diffrawfilename, reldiffrawfilename ;//for hist and rediff
+    // QString indatarawfilename, refdatarawfilename ;//for scatter
+    // QString diffrawfilename, reldiffrawfilename ;//for hist and rediff
+    QString in_vs_ref_datafile ;//it is text file, this is for linear fit, will not use in gnuplot.
+
+    QString diffdatafile ;// it is text file , x for bin, y for count, this is histgram data file.
+    QString heatmapdatafile ;// for scatter; x y cnt
     QString diffrasterfilename;//tiff for bias
 
-    int matchingCount ;
+    QString outscatterpngfile ;
+    QString outhistpngfile ;
+
+    double correlation ;//相关系数
+    double rsquared ;//R2
+    double linearK ;//y=Kx+B
+    double linearB ;
+    double rmse ;//均方根误差
+
+    int matchingCount ;//sampleCount 样本点
 
     QString matcher;
 

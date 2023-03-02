@@ -29,10 +29,9 @@ bool PlotOrder::writeToJsonFile(QString filename)
     root["inTag"] = inTag.toStdString() ;
     root["reTag"] = reTag.toStdString() ;
 
-    root["pythonexe"]= pythonexe.toStdString();
+    root["gnuplot"]= gnuplotexe.toStdString();
     root["xlabel"] = xlabel.toStdString() ;
     root["ylabel"] = ylabel.toStdString() ;
-    root["scriptpy"]= scriptpy.toStdString();
 
     root["scatterXmin"]=scatterXmin ;
     root["scatterXmax"]=scatterXmax ;
@@ -66,13 +65,22 @@ bool PlotOrder::writeToJsonFile(QString filename)
     root["outbasename"]= outbasename.toStdString();
 
     //results
-    root["indatarawfilename"]= indatarawfilename.toStdString();
-    root["refdatarawfilename"]=refdatarawfilename.toStdString();
-    root["diffrawfilename"]=diffrawfilename.toStdString();
-    root["reldiffrawfilename"]=reldiffrawfilename.toStdString();
+    root["in_vs_ref_datafile"]= in_vs_ref_datafile.toStdString();
+    root["diffdatafile"]=diffdatafile.toStdString();
+    root["heatmapdatafile"]=heatmapdatafile.toStdString();
+
+    root["outhistpngfile"]   =outhistpngfile.toStdString();
+    root["outscatterpngfile"]=outscatterpngfile.toStdString();
+    root["plotscriptfile"] = plotscriptfile.toStdString() ;
+
     root["diffrasterfilename"]=diffrasterfilename.toStdString();//tiff data
 
     root["matchingCount"] = matchingCount ;
+    root["correlation"] = correlation ;
+    root["rsquared"] = rsquared ;
+    root["linearK"] = linearK ;
+    root["linearB"] = linearB ;
+    root["rmse"] = rmse ;
 
     root["matcher"] = matcher.toStdString() ;
 

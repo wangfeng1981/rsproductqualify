@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     ../sharedcodes2/filenameutil.cpp \
+    ../sharedcodes2/simple_linear_regression.cpp \
     ../sharedcodes2/wogrcoorconverter.cpp \
     ../sharedcodes2/wprocessqueue.cpp \
     ../sharedcodes2/wstringutils.cpp \
@@ -25,20 +26,24 @@ SOURCES += \
     mainwindow.cpp \
     maskvaluevalidator.cpp \
     plotorder.cpp \
+    plotvarreplaceutil.cpp \
     wcomparetask.cpp \
     wfilepair.cpp \
     wrastercompare.cpp
 
 HEADERS += \
     ../sharedcodes2/filenameutil.h \
+    ../sharedcodes2/simple_linear_regression.h \
     ../sharedcodes2/wGdalRaster.h \
     ../sharedcodes2/wogrcoorconverter.h \
     ../sharedcodes2/wprocessqueue.h \
     ../sharedcodes2/wstringutils.h \
+    ../sharedcodes2/wtextfilereader.h \
     assertlineedit.h \
     mainwindow.h \
     maskvaluevalidator.h \
     plotorder.h \
+    plotvarreplaceutil.h \
     wcomparetask.h \
     wfilepair.h \
     wrastercompare.h

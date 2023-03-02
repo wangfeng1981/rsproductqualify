@@ -12,7 +12,7 @@
 #include "wcomparetask.h"
 #include <QDebug>
 #include "plotorder.h"
-
+#include "plotvarreplaceutil.h"
 
 using std::vector;
 
@@ -29,7 +29,13 @@ MainWindow::MainWindow(QWidget *parent)
     // 2023-1-9
     // 1.图像坐标对比，直接把输入数据坐标写入结果影像
     // 2.增加无效值输出
-    setWindowTitle("遥感数据质量检验（图像对图像）V1.1.0") ;
+    //setWindowTitle("遥感数据质量检验（图像对图像）V1.1.0") ;
+
+    //2023-3-1
+    //1. remove python staff use gnuplot-portable version5.4.6
+    //2. 数字结果汇总到一个csv中
+    //3. 增加配置参数保存
+    setWindowTitle("遥感数据质量检验（图像对图像）V2.0.1") ;
 
     QObject::connect( wProcessQueue::getInstance() , &wProcessQueue::progressChanged,
                       this,&MainWindow::progressChanged ) ;
@@ -45,7 +51,7 @@ void MainWindow::on_pushButtonAddInput_clicked()
 {
 
     QFileDialog dlg(this) ;
-    QStringList fnames = dlg.getOpenFileNames(this,"Select reference files","","Tiff files(*.tif)") ;
+    QStringList fnames = dlg.getOpenFileNames(this,"Select Input files","","Tiff files(*.tif)") ;
 
     if( fnames.length()> 0 )
     {
@@ -74,7 +80,7 @@ void MainWindow::on_pushButtonClearInput_clicked()
 void MainWindow::on_pushButtonAddRef_clicked()
 {
     QFileDialog dlg(this) ;
-    QStringList fnames = dlg.getOpenFileNames(this,"Select input files","","Tiff files(*.tif)") ;
+    QStringList fnames = dlg.getOpenFileNames(this,"Select Ref files","","Tiff files(*.tif)") ;
 
     if( fnames.length()> 0 )
     {
@@ -165,11 +171,11 @@ void MainWindow::on_pushButtonOk_clicked()
         //  ref end -----------
 
 
-        // About Plot and Python //////////////////////
+        // About Gnuplot and script.plt //////////////////////
         QString xlabel = ui->lineEditXLabel->text();
         QString ylabel = ui->lineEditYLabel->text() ;
-        QString pythonexe = as.getStr(ui->lineEditPython,"Python Exec") ;
-        QString scriptpy = as.getStr(ui->lineEditScriptPy,"Script.py") ;
+        QString gnuplotexe = as.getStr(ui->lineEditGnuplot,"Gnuplot Exec") ;
+        QString scriptPlot = as.getStr(ui->lineEditScriptPlot,"Script.plt") ;
 
         // Scatter staff
         double scatterXmin = as.getDouble(ui->lineEditScatterXMin,"Scatter X Min") ;
@@ -192,7 +198,7 @@ void MainWindow::on_pushButtonOk_clicked()
         QString rehistXLabel = ui->lineEditREXLabel->text() ;
         QString rehistYLabel = ui->lineEditREYLabel->text() ;
 
-        // End About plot and python -------------------
+        // End About plot  -------------------
 
         // select coordinate for matching /////////////////////
         bool useProj = false ;//use image coordinate
@@ -277,6 +283,10 @@ void MainWindow::on_pushButtonOk_clicked()
         }else{
             outdir += '/' ;
         }
+
+        QString alloutcsvfile = as.getStr(ui->lineEditOutCSV,"Out CSV") ;
+        ofstream alloutOfs(alloutcsvfile.toStdString().c_str() , std::ios::app ) ;
+        alloutOfs<<"basename,sampleCnt,RMSE,correlation,Rsquared,lineK,lineB\n" ;
         // end output dir -------------------------
 
 
@@ -324,12 +334,10 @@ void MainWindow::on_pushButtonOk_clicked()
                 order1.useProj = (int)useProj ;
                 order1.inTag = intag ;
                 order1.reTag = retag ;
-                order1.pythonexe = pythonexe ;
+                order1.gnuplotexe = gnuplotexe ;
 
                 order1.xlabel = xlabel ;
                 order1.ylabel = ylabel ;
-
-                order1.scriptpy = scriptpy ;
 
                 order1.scatterXmin = scatterXmin ;
                 order1.scatterXmax = scatterXmax ;
@@ -369,13 +377,32 @@ void MainWindow::on_pushButtonOk_clicked()
                 QString order1filename = outdir + outbasename+".json" ;
 
                 order1.outbasename = outdir + outbasename ;
-                order1.indatarawfilename = outdir + outbasename + "-indata.raw" ;
-                order1.refdatarawfilename = outdir + outbasename + "-refdata.raw" ;
-                order1.diffrawfilename = outdir + outbasename + "-diff.raw" ;
-                order1.reldiffrawfilename = outdir + outbasename + "-reldiff.raw" ;
+                //order1.indatarawfilename = outdir + outbasename + "-indata.raw" ;
+                //order1.refdatarawfilename = outdir + outbasename + "-refdata.raw" ;
+                //order1.diffrawfilename = outdir + outbasename + "-diff.raw" ;
+                //order1.reldiffrawfilename = outdir + outbasename + "-reldiff.raw" ;
+                order1.in_vs_ref_datafile = outdir + outbasename + "-inNre.txt" ;
+                order1.diffdatafile = outdir + outbasename + "-diff.txt" ;
+                order1.heatmapdatafile = outdir + outbasename + "-heat.txt" ;
                 order1.diffrasterfilename = outdir + outbasename + "-diff.tif" ;
+                order1.outhistpngfile = outdir + outbasename + "-hist.png" ;
+                order1.outscatterpngfile = outdir + outbasename + "-scat.png" ;
 
+                //copy scriptPlot
+                order1.plotscriptfile = outdir + outbasename + "-plot.plt" ;
+                bool copyScriptOk = QFile::copy( scriptPlot , order1.plotscriptfile) ;
+                if(copyScriptOk==false )
+                {
+                    string msg = string("Failed to copy scriptPlot from ")
+                            + scriptPlot.toStdString() + " to " + order1.plotscriptfile.toStdString() ;
+                    std::logic_error ex1( msg ) ;
+                    throw ex1 ;
+                }
+
+                // 坐标匹配
                 order1.matcher = matcher ;
+
+
 
                 string comapreError;
                 bool cok = WRasterCompare::Compare2(
@@ -385,18 +412,26 @@ void MainWindow::on_pushButtonOk_clicked()
                             useProj,
                             valid0In,valid1In,slopeIn,interIn,
                             valid0ref,valid1ref,slopeRef,interRef,
-                            histCount,
+                            histCount, histXmin, histXmax ,
                             usePerFileMask,
                             order1.inMaskFilename.toStdString(), order1.reMaskFilename.toStdString(),
                             inMvv, reMvv,
                             useGlobalMask,
                             order1.globalMaskFilename.toStdString(), globalMvv,
-                            order1.indatarawfilename.toStdString(),
-                            order1.refdatarawfilename.toStdString(),
-                            order1.diffrawfilename.toStdString(),
-                            order1.reldiffrawfilename.toStdString(),
+                            order1.in_vs_ref_datafile.toStdString(), //scatter
+                            order1.diffdatafile.toStdString(),       //error
+                            order1.heatmapdatafile.toStdString() ,   //scatter heatmap
+                            order1.scatterXmin,
+                            order1.scatterXmax,
+                            order1.scatterYmin,
+                            order1.scatterYmax,
                             order1.diffrasterfilename.toStdString(),
                             order1.matchingCount,
+                            order1.correlation,
+                            order1.rsquared,
+                            order1.linearK,
+                            order1.linearB,
+                            order1.rmse ,
                             outFillvalue,
                             comapreError
                             ) ;
@@ -407,11 +442,31 @@ void MainWindow::on_pushButtonOk_clicked()
 
                 order1.writeToJsonFile(order1filename) ;
 
-                //call python
-                QString cmd1 = order1.pythonexe + " " + order1.scriptpy + " " + order1filename ;
+                // 使用对比生成中间数据替换plt模板中的预定义变量{{{...}}}
+                PlotVarReplaceUtil replacer ;
+                replacer.replace(
+                            order1.plotscriptfile.toStdString(),
+                            order1.plotscriptfile.toStdString() ,
+                            order1) ;
+
+
+                //call gnuplot
+                // plot result filename is order1filename , write into scriptPlot.
+                QString cmd1 = order1.gnuplotexe + " " + order1.plotscriptfile ;
                 spdlog::info("begin call command:{}" , cmd1.toStdString());
                 int ret = system(cmd1.toStdString().c_str()) ;
                 spdlog::info("command return code:{}" , ret);
+
+                //汇总结果
+                alloutOfs<<order1.outbasename.toStdString()<<","
+                        <<order1.matchingCount<<","
+                        <<order1.rmse<<","
+                       <<order1.correlation<<","
+                      <<order1.rsquared<<","
+                     <<order1.linearK<<","
+                    <<order1.linearB<<","<<"\n" ;
+
+
             }
         }
     } catch (std::logic_error& ex) {
@@ -456,21 +511,14 @@ int MainWindow::getBandCount(QString filename)
     }
 }
 
-// Open File Dialog for Python.exe
-void MainWindow::on_pushButtonOpenPython_clicked()
-{
-    QString file1 = QFileDialog::getOpenFileName(this,"Please select python.exe",".","Exec(*.exe)");
-    if( file1.isEmpty() ==false ){
-        ui->lineEditPython->setText(file1) ;
-    }
-}
 
-// Open File Dialog for Script.py
+
+// Open File Dialog for script
 void MainWindow::on_pushButtonOpenScript_clicked()
 {
-    QString file1 = QFileDialog::getOpenFileName(this,"Please select script.py",".","Script(*.py)");
+    QString file1 = QFileDialog::getOpenFileName(this,"Please select plot.plt",".","Script(*.plt)");
     if( file1.isEmpty() ==false ){
-        ui->lineEditScriptPy->setText(file1) ;
+        ui->lineEditScriptPlot->setText(file1) ;
     }
 }
 
@@ -530,4 +578,21 @@ int MainWindow::getMatchFnameFromList(QString matcher, int pos, int len, QString
         }
     }
     return -1 ;
+}
+
+//Open Dialog for Gnuplot.exe
+void MainWindow::on_pushButtonOpenGnuplot_clicked()
+{
+    QString file1 = QFileDialog::getOpenFileName(this,"Please select gnuplot.exe",".","Exec(*.exe)");
+    if( file1.isEmpty() ==false ){
+        ui->lineEditGnuplot->setText(file1) ;
+    }
+}
+//统计信息以追加的形式添加到CSV文件中
+void MainWindow::on_pushButtonOpenOutCSV_clicked()
+{
+    QString file1 = QFileDialog::getSaveFileName(this,"Please select CSV",".","CSV(*.csv)");
+    if( file1.isEmpty() ==false ){
+        ui->lineEditOutCSV->setText(file1) ;
+    }
 }
