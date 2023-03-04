@@ -57,6 +57,13 @@ set ylabel "{{{histylabel}}}"
 
 # 
 set xrange [{{{histXmin}}}:{{{histXmax}}}]
+set yrange [0.0:{{{histYmax}}}]
+
+#vertical line of zero-x
+$linezerox << EOD
+0.0 0.0
+0.0 {{{histYmax}}}
+EOD
 
 # 
-plot '{{{histdatafile}}}' using 1:2 title '' with boxes 
+plot '{{{histdatafile}}}' using 1:2 title '' with boxes , '$linezerox' using 1:2 title '' with lines dt 3 lc rgb '#FF0000' lw 1

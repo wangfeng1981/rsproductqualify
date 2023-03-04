@@ -41,6 +41,7 @@ bool PlotOrder::writeToJsonFile(QString filename)
     root["histXmin"]=histXmin ;
     root["histXmax"]=histXmax ;
     root["histCount"]=histCount ;
+    root["histYmax"]=histYmax ;
 
     root["histXminRE"]=histXminRE ;
     root["histXmaxRE"]=histXmaxRE ;

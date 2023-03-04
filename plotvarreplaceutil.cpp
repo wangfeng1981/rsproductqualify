@@ -48,7 +48,9 @@ bool PlotVarReplaceUtil::replace( string inpltfilename , string outfilename , Pl
     content0 = wStringUtils::replaceString(content0,"{{{histylabel}}}", order.histYLabel.toStdString() ) ;
     content0 = wStringUtils::replaceString(content0,"{{{histXmin}}}", QString::number(order.histXmin).toStdString()  ) ;
     content0 = wStringUtils::replaceString(content0,"{{{histXmax}}}", QString::number(order.histXmax).toStdString()  ) ;
+    content0 = wStringUtils::replaceString(content0,"{{{histYmax}}}", QString::number(order.histYmax).toStdString()  ) ;
     content0 = wStringUtils::replaceString(content0,"{{{histdatafile}}}", order.diffdatafile.toStdString() ) ;
+
 
     ofstream ofs( outfilename.c_str() ) ;
     if( ofs.is_open()==false ) return false ;

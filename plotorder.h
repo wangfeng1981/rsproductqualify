@@ -24,7 +24,7 @@ public:
     QString xlabel,ylabel ;//scatter fig
     QString plotscriptfile ;
     double scatterXmin,scatterXmax,scatterYmin,scatterYmax ;
-    double histXmin,histXmax,histCount ;//error hist x range and hist count.
+    double histXmin,histXmax,histCount,histYmax ;//error hist x range and hist count.
 
     double histXminRE,histXmaxRE ;//relative error hist x range
     QString histXLabel, histYLabel ;

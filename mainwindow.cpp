@@ -13,8 +13,11 @@
 #include <QDebug>
 #include "plotorder.h"
 #include "plotvarreplaceutil.h"
+#include "ajson5.h"
+#include "computeapu.h"
 
 using std::vector;
+using namespace ArduinoJson;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -32,13 +35,22 @@ MainWindow::MainWindow(QWidget *parent)
     //setWindowTitle("遥感数据质量检验（图像对图像）V1.1.0") ;
 
     //2023-3-1
-    //1. remove python staff use gnuplot-portable version5.4.6
-    //2. 数字结果汇总到一个csv中
-    //3. 增加配置参数保存
-    setWindowTitle("遥感数据质量检验（图像对图像）V2.0.1") ;
+    //1. remove python staff use gnuplot-portable version5.4.6 ok v2.0.1
+    //2. 数字结果汇总到一个csv中 ok v2.0.1
+    //3. 增加配置参数保存 v2.0.2 ok
+    //4. 修复进度条 没有分离线程，搞不定，这个版本算了。
+    //5. 直方图Y轴数据改为百分比 0-100 单位% ok
+    //6. 增加APU空间图计算参考王圆圆文章 ok
+    //7. 空间偏差绘图 ok
+    setWindowTitle("遥感数据质量检验（图像对图像）V2.0.2") ;
 
     QObject::connect( wProcessQueue::getInstance() , &wProcessQueue::progressChanged,
                       this,&MainWindow::progressChanged ) ;
+
+    //载入质检配置
+    QObject::connect( ui->actionLoad , &QAction::triggered , this , &MainWindow::on_actionLoadProject_clicked ) ;
+    //保存质检配置
+    QObject::connect( ui->actionSave , &QAction::triggered , this , &MainWindow::on_actionSaveProject_clicked ) ;
 }
 
 MainWindow::~MainWindow()
@@ -124,6 +136,7 @@ double getDoubleFromLineEdit(QLineEdit* lineEdit)
 
 void MainWindow::on_pushButtonOk_clicked()
 {
+    int progressMaxValue = 0 ;
     if( ui->listWidgetInfiles->count()==0 ){
         QMessageBox::information(this,"info","infiles empty") ;
         return ;
@@ -187,6 +200,7 @@ void MainWindow::on_pushButtonOk_clicked()
         double histXmin = as.getDouble(ui->lineEditHistXMin,"Diff Hist X Min") ;
         double histXmax = as.getDouble(ui->lineEditHistXMax,"Diff Hist X Max") ;
         int histCount = as.getDouble(ui->lineEditHistCount,"Hist Count") ;
+        double histYmax = as.getDouble(ui->lineEditBiasPlotMaxY,"Bias Hist Y Max") ;
         double histXminRe = as.getDouble(ui->lineEditHistXminRE,"RelDiff Hist X Min") ;
         double histXmaxRe = as.getDouble(ui->lineEditHistXmaxRE,"RelDiff Hist X Max") ;
 
@@ -287,7 +301,30 @@ void MainWindow::on_pushButtonOk_clicked()
         QString alloutcsvfile = as.getStr(ui->lineEditOutCSV,"Out CSV") ;
         ofstream alloutOfs(alloutcsvfile.toStdString().c_str() , std::ios::app ) ;
         alloutOfs<<"basename,sampleCnt,RMSE,correlation,Rsquared,lineK,lineB\n" ;
+
+        //APU from WangYuanYuan
+        string outAfilename = alloutcsvfile.toStdString()+"_Acc.tif" ;
+        string outPfilename = alloutcsvfile.toStdString()+"_Pre.tif" ;
+        string outUfilename = alloutcsvfile.toStdString()+"_Unc.tif" ;
+        string outCfilename = alloutcsvfile.toStdString()+"_Cnt.tif" ;
+        vector<string> biasFilenameVec ;
+
         // end output dir -------------------------
+
+
+
+        // QGS绘图 --------------------------
+        QString mapPrintExe = ui->lineEditMapPrintExe->text() ;
+        QString qgsfilename = ui->lineEditQgsTemplate->text() ;
+        bool qgsZoomToData = ui->checkBoxZoom->isChecked() ;
+        bool qgsClipContent = ui->checkBoxClipContent->isChecked() ;
+        int qgsDPI = (int)as.getDouble(ui->lineEditDpi,"DPI") ;
+        if(qgsDPI<72) qgsDPI=72;
+        if(qgsDPI>600) qgsDPI=600 ;
+
+        //----------------------------------
+
+
 
 
         QStringList infilenameArr, refilenameArr ;
@@ -304,7 +341,9 @@ void MainWindow::on_pushButtonOk_clicked()
             QFileInfo finfo(filename2) ;
             refilenameArr.push_back( finfo.baseName() ) ;
         }
-
+        ui->progressBar->setRange(0, infilenameArr.size() ) ;
+        ui->progressBar->setValue(0) ;
+        progressMaxValue=infilenameArr.size();
         for(int ifile1 = 0 ; ifile1 < infilenameArr.size() ; ++ifile1 )
         {
             QString matcher = infilenameArr[ifile1].mid( infilenamePos, filenameLen) ;
@@ -346,6 +385,7 @@ void MainWindow::on_pushButtonOk_clicked()
                 order1.histXmin = histXmin ;
                 order1.histXmax = histXmax ;
                 order1.histCount = histCount ;
+                order1.histYmax =histYmax ;
 
                 order1.histXminRE = histXminRe ;
                 order1.histXmaxRE = histXmaxRe ;
@@ -377,10 +417,6 @@ void MainWindow::on_pushButtonOk_clicked()
                 QString order1filename = outdir + outbasename+".json" ;
 
                 order1.outbasename = outdir + outbasename ;
-                //order1.indatarawfilename = outdir + outbasename + "-indata.raw" ;
-                //order1.refdatarawfilename = outdir + outbasename + "-refdata.raw" ;
-                //order1.diffrawfilename = outdir + outbasename + "-diff.raw" ;
-                //order1.reldiffrawfilename = outdir + outbasename + "-reldiff.raw" ;
                 order1.in_vs_ref_datafile = outdir + outbasename + "-inNre.txt" ;
                 order1.diffdatafile = outdir + outbasename + "-diff.txt" ;
                 order1.heatmapdatafile = outdir + outbasename + "-heat.txt" ;
@@ -401,7 +437,6 @@ void MainWindow::on_pushButtonOk_clicked()
 
                 // 坐标匹配
                 order1.matcher = matcher ;
-
 
 
                 string comapreError;
@@ -466,7 +501,49 @@ void MainWindow::on_pushButtonOk_clicked()
                      <<order1.linearK<<","
                     <<order1.linearB<<","<<"\n" ;
 
+                //偏差输出文件数组
+                biasFilenameVec.push_back(order1.diffrasterfilename.toStdString()) ;
 
+                //QGS绘图
+                if( mapPrintExe.isEmpty()==false && qgsfilename.isEmpty()==false )
+                {
+                    QString tempZoomStr = "0" ;
+                    if( qgsZoomToData ) tempZoomStr="1";
+                    QString tempClipContent="0" ;
+                    if( qgsClipContent ) tempClipContent="1" ;
+                    QString tempQgsExportFilename=order1.diffrasterfilename+".qgs.png" ;
+                    QString qgscmd1 = mapPrintExe + " "
+                            + qgsfilename + " "
+                            + order1.diffrasterfilename + " "
+                            + " \"\" "
+                            + tempZoomStr + " " + tempClipContent + " " + QString::number(qgsDPI) + " "
+                            + tempQgsExportFilename ;
+                    int qgs_ret = system( qgscmd1.toStdString().c_str() ) ;
+
+                }
+                ui->progressBar->setValue(ifile1) ;
+                this->repaint() ;
+            }
+        }
+        //A accuracy P precision U uncertainty C count
+        // 一个文件计算没有意义
+        if( biasFilenameVec.size() > 1 )
+        {
+            string apuError;
+            ComputeAPU computer ;
+            bool apuok1 = computer.computeAnU(biasFilenameVec,(int)outFillvalue,
+                                outAfilename,outUfilename,outCfilename,apuError) ;
+            if(apuok1==false)
+            {
+                QMessageBox::information(this,"error",  apuError.c_str() ) ;
+                return ;
+            }
+            apuok1 = computer.computeP(biasFilenameVec,(int)outFillvalue,
+                                       outAfilename,outCfilename,outPfilename,apuError) ;
+            if(apuok1==false)
+            {
+                QMessageBox::information(this,"error",  apuError.c_str() ) ;
+                return ;
             }
         }
     } catch (std::logic_error& ex) {
@@ -474,6 +551,7 @@ void MainWindow::on_pushButtonOk_clicked()
         return ;
     }
     QMessageBox::information(this,"info","Done") ;
+    ui->progressBar->setValue(progressMaxValue) ;
 }
 
 void MainWindow::progressChanged(int type, int doneTaskCnt,int totalTaskCnt, int progressOrStatus, QString currTaskDoneInfo )
@@ -570,7 +648,7 @@ int MainWindow::getMatchFnameFromList(QString matcher, int pos, int len, QString
 {
     for(int i = 0 ; i<fnameList.size(); ++ i )
     {
-        if( fnameList[i].length() > pos+len ){
+        if( fnameList[i].length() >= pos+len ){ //bugfixed 2023-3-3
             QString part = fnameList[i].mid(pos,len) ;
             if( matcher.compare(part) == 0 ){
                 return i ;
@@ -594,5 +672,272 @@ void MainWindow::on_pushButtonOpenOutCSV_clicked()
     QString file1 = QFileDialog::getSaveFileName(this,"Please select CSV",".","CSV(*.csv)");
     if( file1.isEmpty() ==false ){
         ui->lineEditOutCSV->setText(file1) ;
+    }
+}
+
+//质检方案
+void MainWindow::on_actionLoadProject_clicked()
+{
+    QString file1 = QFileDialog::getOpenFileName(this,"Open QA Project",".","JSON(*.json)");
+    if( file1.isEmpty() ==false ){
+        //Read Staff
+        std::ifstream ifs(file1.toStdString().c_str());
+        if( ifs.good()==false )
+        {
+            QMessageBox::warning(this,"Warning","质检方案文件读取失败.") ;
+            return ;
+        }
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject& jsonRoot = jsonBuffer.parseObject(ifs);
+
+        ui->lineEditValid0->setText( jsonRoot["in_valid0"].as<char*>() ) ;
+        ui->lineEditValid1->setText( jsonRoot["in_valid1"].as<char*>() ) ;
+        ui->lineEditSlopeIn->setText( jsonRoot["in_slope"].as<char*>() ) ;
+        ui->lineEditInterIn->setText( jsonRoot["in_inter"].as<char*>() ) ;
+        ui->lineEditOutFillvalue->setText( jsonRoot["out_fillvalue"].as<char*>() ) ;
+        ui->lineEditValid0Ref->setText( jsonRoot["re_valid0"].as<char*>() ) ;
+        ui->lineEditValid1Ref->setText( jsonRoot["re_valid1"].as<char*>() ) ;
+        ui->lineEditSlopeRef->setText( jsonRoot["re_slope"].as<char*>() ) ;
+        ui->lineEditInterRef->setText( jsonRoot["re_inter"].as<char*>() ) ;
+        ui->lineEditXLabel->setText( jsonRoot["scat_xlabel"].as<char*>() ) ;
+        ui->lineEditYLabel->setText( jsonRoot["scat_ylabel"].as<char*>() ) ;
+        ui->lineEditGnuplot->setText( jsonRoot["gnuplotexe"].as<char*>() ) ;
+        ui->lineEditScriptPlot->setText( jsonRoot["plotscript"].as<char*>() ) ;
+        ui->lineEditScatterXMin->setText( jsonRoot["scat_xmin"].as<char*>() ) ;
+        ui->lineEditScatterXMax->setText( jsonRoot["scat_xmax"].as<char*>() ) ;
+        ui->lineEditScatterYMin->setText( jsonRoot["scat_ymin"].as<char*>() ) ;
+        ui->lineEditScatterYMax->setText( jsonRoot["scat_ymax"].as<char*>() ) ;
+        ui->lineEditHistXMin->setText( jsonRoot["hist_xmin"].as<char*>() ) ;
+        ui->lineEditHistXMax->setText( jsonRoot["hist_xmax"].as<char*>() ) ;
+        ui->lineEditBiasPlotMaxY->setText( jsonRoot["hist_ymax"].as<char*>() ) ;
+        ui->lineEditHistCount->setText( jsonRoot["hist_barcount"].as<char*>() ) ;
+        ui->lineEditHistXminRE->setText( jsonRoot["hist_rexmin"].as<char*>() ) ;
+        ui->lineEditHistXmaxRE->setText( jsonRoot["hist_rexmax"].as<char*>() ) ;
+        ui->lineEditDiffXLabel->setText( jsonRoot["hist_xlabel"].as<char*>() ) ;
+        ui->lineEditDiffYLabel->setText( jsonRoot["hist_ylabel"].as<char*>() ) ;
+        ui->lineEditREXLabel->setText( jsonRoot["hist_rexlabel"].as<char*>() ) ;
+        ui->lineEditREYLabel->setText( jsonRoot["hist_reylabel"].as<char*>() ) ;
+        ui->lineEditInTag->setText( jsonRoot["in_tag"].as<char*>() ) ;
+        ui->lineEditReTag->setText( jsonRoot["re_tag"].as<char*>() ) ;
+        ui->lineEditInDatePos->setText( jsonRoot["in_datepos"].as<char*>() ) ;
+        ui->lineEditRefDatePos->setText( jsonRoot["re_datepos"].as<char*>() ) ;
+        ui->lineEditDateLen->setText( jsonRoot["in_datelen"].as<char*>() ) ;
+        ui->lineEditInMaskFnamePos->setText( jsonRoot["mask_indatepos"].as<char*>() ) ;
+        ui->lineEditReMaskFnamePos->setText( jsonRoot["mask_redatepos"].as<char*>() ) ;
+        ui->lineEditInMaskValues->setText( jsonRoot["mask_inpassval"].as<char*>() ) ;
+        ui->lineEditReMaskValues->setText( jsonRoot["mask_repassval"].as<char*>() ) ;
+        ui->lineEditGlobalMaskTag->setText( jsonRoot["mask_global_tag"].as<char*>() ) ;
+        ui->lineEditGlobalMaskFilename->setText( jsonRoot["mask_global_filename"].as<char*>() ) ;
+        ui->lineEditGlobalMaskValues->setText( jsonRoot["mask_global_passval"].as<char*>() ) ;
+        ui->lineEditOutfile->setText( jsonRoot["out_dir"].as<char*>() ) ;
+        ui->lineEditOutCSV->setText( jsonRoot["out_allcsvfilename"].as<char*>() ) ;
+
+        int inbandcount = jsonRoot["in_bandcount"].as<int>() ;
+        int rebandcount = jsonRoot["re_bandcount"].as<int>() ;
+        int inbandindex = jsonRoot["in_bandindex"].as<int>() ;
+        int rebandindex = jsonRoot["re_bandindex"].as<int>() ;
+        ui->comboBoxBandIn->clear() ;
+        ui->comboBoxBandRef->clear() ;
+        for(int iband = 0 ; iband < inbandcount;++iband ){
+            ui->comboBoxBandIn->addItem( QString::number(iband) ) ;
+        }
+        for(int iband = 0 ; iband < rebandcount;++iband ){
+            ui->comboBoxBandRef->addItem( QString::number(iband) ) ;
+        }
+        ui->comboBoxBandIn->setCurrentIndex(inbandindex) ;
+        ui->comboBoxBandRef->setCurrentIndex(rebandindex) ;
+
+        if(jsonRoot["match_proj"].as<bool>() == true )
+        {
+            ui->radioButtonMatchProj->setChecked(true) ;
+            ui->radioButtonMatchPixel->setChecked(false) ;
+        }else{
+            ui->radioButtonMatchProj->setChecked(false) ;
+            ui->radioButtonMatchPixel->setChecked(true) ;
+        }
+
+        ui->checkBoxPerFileMask->setChecked( jsonRoot["mask_perfile"].as<bool>() ) ;
+        ui->checkBoxUseGlobalMask->setChecked( jsonRoot["mask_useglobal"].as<bool>() ) ;
+
+        JsonArray& mask_inArr = jsonRoot["mask_infiles"].as<JsonArray>() ;
+        JsonArray& mask_reArr = jsonRoot["mask_refiles"].as<JsonArray>() ;
+        JsonArray& inArr = jsonRoot["in_files"].as<JsonArray>() ;
+        JsonArray& reArr = jsonRoot["re_files"].as<JsonArray>() ;
+
+        ui->listWidgetInMaskList->clear() ;
+        ui->listWidgetReMaskList->clear() ;
+        ui->listWidgetInfiles->clear() ;
+        ui->listWidgetReffiles->clear() ;
+
+
+        for(int i1 = 0 ;i1 < mask_inArr.size() ;++i1 )
+        {
+            string fpath = mask_inArr[i1].as<char*>() ;//
+            ui->listWidgetInMaskList->addItem( fpath.c_str() ) ;
+        }
+        for(int i1 = 0 ;i1 < mask_reArr.size() ;++i1 )
+        {
+            string fpath = mask_reArr[i1].as<char*>() ;//
+            ui->listWidgetReMaskList->addItem( fpath.c_str() ) ;
+        }
+        for(int ifile1 = 0 ; ifile1 < inArr.size() ; ++ifile1 )
+        {
+            string filename1 = inArr[ifile1].as<char*>() ;
+            ui->listWidgetInfiles->addItem( filename1.c_str() ) ;
+        }
+        for(int ifile2 = 0 ; ifile2 < reArr.size() ; ++ifile2)
+        {
+            string filename2 = reArr[ifile2].as<char*>() ;
+            ui->listWidgetReffiles->addItem( filename2.c_str() ) ;
+        }
+
+        //Qgis
+        ui->lineEditMapPrintExe->setText(jsonRoot["qgs_mapprint"].as<char*>())  ;
+        ui->lineEditQgsTemplate->setText(jsonRoot["qgs_template"].as<char*>())  ;
+        ui->lineEditDpi->setText(jsonRoot["qgs_dpi"].as<char*>())  ;
+        ui->checkBoxZoom->setChecked( jsonRoot["qgs_zoom"].as<bool>() ) ;
+        ui->checkBoxClipContent->setChecked( jsonRoot["qgs_clipextent"].as<bool>() ) ;
+
+        QMessageBox::information(this,"Done","质检方案已加载") ;
+    }
+}
+void MainWindow::on_actionSaveProject_clicked()
+{
+    QString file1 = QFileDialog::getSaveFileName(this,"Save QA Project",".","JSON(*.json)");
+    if( file1.isEmpty() ==false ){
+        //Saveing staff
+        ArduinoJson::DynamicJsonBuffer jsonBuffer;
+        JsonObject& jsonRoot = jsonBuffer.createObject() ;
+        jsonRoot["in_valid0"] = ui->lineEditValid0->text().toStdString() ;
+        jsonRoot["in_valid1"] = ui->lineEditValid1->text().toStdString() ;
+        jsonRoot["in_slope"] = ui->lineEditSlopeIn->text().toStdString() ;
+        jsonRoot["in_inter"] = ui->lineEditInterIn->text().toStdString() ;
+
+        jsonRoot["in_bandindex"] = ui->comboBoxBandIn->currentIndex() ;
+        jsonRoot["in_bandcount"] = ui->comboBoxBandIn->count() ;
+
+        jsonRoot["out_fillvalue"] = ui->lineEditOutFillvalue->text().toStdString() ;
+
+
+
+        jsonRoot["re_valid0"] = ui->lineEditValid0Ref->text().toStdString() ;
+        jsonRoot["re_valid1"] = ui->lineEditValid1Ref->text().toStdString() ;
+
+        jsonRoot["re_slope"] = ui->lineEditSlopeRef->text().toStdString() ;
+        jsonRoot["re_inter"] = ui->lineEditInterRef->text().toStdString() ;
+
+        jsonRoot["re_bandindex"] = ui->comboBoxBandRef->currentIndex() ;
+        jsonRoot["re_bandcount"] = ui->comboBoxBandRef->count() ;
+
+
+        jsonRoot["scat_xlabel"] = ui->lineEditXLabel->text().toStdString() ;
+        jsonRoot["scat_ylabel"] = ui->lineEditYLabel->text().toStdString() ;
+        jsonRoot["gnuplotexe"] = ui->lineEditGnuplot->text().toStdString() ;
+        jsonRoot["plotscript"] = ui->lineEditScriptPlot->text().toStdString() ;
+
+        jsonRoot["scat_xmin"] = ui->lineEditScatterXMin->text().toStdString() ;
+        jsonRoot["scat_xmax"] = ui->lineEditScatterXMax->text().toStdString() ;
+        jsonRoot["scat_ymin"] = ui->lineEditScatterYMin->text().toStdString() ;
+        jsonRoot["scat_ymax"] = ui->lineEditScatterYMax->text().toStdString() ;
+
+        jsonRoot["hist_xmin"] = ui->lineEditHistXMin->text().toStdString() ;
+        jsonRoot["hist_xmax"] = ui->lineEditHistXMax->text().toStdString() ;
+        jsonRoot["hist_ymax"] = ui->lineEditBiasPlotMaxY->text().toStdString() ;//new
+        jsonRoot["hist_barcount"] = ui->lineEditHistCount->text().toStdString() ;
+        jsonRoot["hist_rexmin"] = ui->lineEditHistXminRE->text().toStdString() ;
+        jsonRoot["hist_rexmax"] = ui->lineEditHistXmaxRE->text().toStdString() ;
+
+        jsonRoot["hist_xlabel"] = ui->lineEditDiffXLabel->text().toStdString() ;
+        jsonRoot["hist_ylabel"] = ui->lineEditDiffYLabel->text().toStdString() ;
+        jsonRoot["hist_rexlabel"] = ui->lineEditREXLabel->text().toStdString() ;
+        jsonRoot["hist_reylabel"] = ui->lineEditREYLabel->text().toStdString() ;
+
+        jsonRoot["match_proj"] = ui->radioButtonMatchProj->isChecked() ;
+        jsonRoot["match_pixel"] = ui->radioButtonMatchPixel->isChecked() ;
+        jsonRoot["in_tag"] = ui->lineEditInTag->text().toStdString() ;
+        jsonRoot["re_tag"] = ui->lineEditReTag->text().toStdString() ;
+
+
+        jsonRoot["in_datepos"] = ui->lineEditInDatePos->text().toStdString() ;
+        jsonRoot["re_datepos"] = ui->lineEditRefDatePos->text().toStdString() ;
+        jsonRoot["in_datelen"] = ui->lineEditDateLen->text().toStdString() ;
+
+        jsonRoot["mask_perfile"] = ui->checkBoxPerFileMask->isChecked()  ;
+        jsonRoot["mask_indatepos"] = ui->lineEditInMaskFnamePos->text().toStdString() ;
+        jsonRoot["mask_redatepos"] = ui->lineEditReMaskFnamePos->text().toStdString() ;
+        jsonRoot["mask_inpassval"] = ui->lineEditInMaskValues->text().toStdString() ;
+        jsonRoot["mask_repassval"] = ui->lineEditReMaskValues->text().toStdString() ;
+
+        JsonArray& mask_inArr = jsonRoot.createNestedArray("mask_infiles") ;
+        JsonArray& mask_reArr = jsonRoot.createNestedArray("mask_refiles") ;
+        for(int i1 = 0 ;i1 < ui->listWidgetInMaskList->count();++i1 )
+        {
+            QString fpath = ui->listWidgetInMaskList->item(i1)->text() ;
+            mask_inArr.add( fpath.toStdString() ) ;
+        }
+        for(int i1 = 0 ;i1 < ui->listWidgetReMaskList->count();++i1 )
+        {
+            QString fpath = ui->listWidgetReMaskList->item(i1)->text() ;
+            mask_reArr.add( fpath.toStdString() ) ;
+        }
+
+        jsonRoot["mask_useglobal"] =ui->checkBoxUseGlobalMask->isChecked() ;
+        jsonRoot["mask_global_tag"] = ui->lineEditGlobalMaskTag->text().toStdString() ;
+        jsonRoot["mask_global_filename"] = ui->lineEditGlobalMaskFilename->text().toStdString() ;
+        jsonRoot["mask_global_passval"] = ui->lineEditGlobalMaskValues->text().toStdString() ;
+
+
+        jsonRoot["out_dir"] = ui->lineEditOutfile->text().toStdString() ;
+        jsonRoot["out_allcsvfilename"] = ui->lineEditOutCSV->text().toStdString() ;
+
+        JsonArray& inArr = jsonRoot.createNestedArray("in_files") ;
+        JsonArray& reArr = jsonRoot.createNestedArray("re_files") ;
+        for(int ifile1 = 0 ; ifile1 < ui->listWidgetInfiles->count(); ++ifile1 )
+        {
+            QString filename1 = ui->listWidgetInfiles->item(ifile1)->text() ;
+            inArr.add( filename1.toStdString() ) ;
+        }
+        for(int ifile2 = 0 ; ifile2 < ui->listWidgetReffiles->count(); ++ifile2)
+        {
+            QString filename2 = ui->listWidgetReffiles->item(ifile2)->text() ;
+            reArr.add( filename2.toStdString() ) ;
+        }
+
+        //Qgis
+        jsonRoot["qgs_mapprint"] =ui->lineEditMapPrintExe->text().toStdString() ;
+        jsonRoot["qgs_template"] = ui->lineEditQgsTemplate->text().toStdString() ;
+        jsonRoot["qgs_dpi"] = ui->lineEditDpi->text().toStdString() ;
+        jsonRoot["qgs_zoom"] = ui->checkBoxZoom->isChecked();
+        jsonRoot["qgs_clipextent"] = ui->checkBoxClipContent->isChecked() ;
+
+        string outtext ;
+        jsonRoot.prettyPrintTo(outtext);// prettyPrintTo()
+        std::ofstream ofs(file1.toStdString().c_str());
+        if( ofs.good() == true )
+        {
+            ofs<<outtext ;
+            ofs.close() ;
+            QMessageBox::information(this,"Done","质检方案已保存") ;
+        }else{
+            QMessageBox::warning(this,"Warning","质检方案写入文件失败.") ;
+            return ;
+        }
+
+    }
+}
+
+void MainWindow::on_pushButtonBrowsePrint_clicked()
+{
+    QString file1 = QFileDialog::getOpenFileName(this,"Map Print",".","EXE(*.exe)");
+    if( file1.isEmpty() ==false ){
+        ui->lineEditMapPrintExe->setText( file1 ) ;
+    }
+}
+
+void MainWindow::on_pushButtonBrowseQgs_clicked()
+{
+    QString file1 = QFileDialog::getOpenFileName(this,"Qgs Bias Template",".","QGS(*.qgs)");
+    if( file1.isEmpty() ==false ){
+        ui->lineEditQgsTemplate->setText( file1 ) ;
     }
 }

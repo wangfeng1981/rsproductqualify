@@ -1,9 +1,14 @@
 ﻿#include "wrastercompare.h"
 #include "../sharedcodes2/filenameutil.h"
 #include "../sharedcodes2/wogrcoorconverter.h"
-#include "../sharedcodes2/wGdalRaster.h"
-#define WGDALRASTER_H_IMPLEMENTATION 1
-#include "../sharedcodes2/wGdalRaster.h"
+
+#ifndef WGDALRASTER_H_IMPLEMENTATION
+#include "wGdalRaster.h"
+#define WGDALRASTER_H_IMPLEMENTATION
+#include "wGdalRaster.h"
+#endif
+
+
 #include "spdlog/spdlog.h"
 
 WPixelCoorTransform::~WPixelCoorTransform(){}
@@ -848,8 +853,8 @@ bool WRasterCompare::Compare2(
 
     //写入直方图
     for(int ih = 0 ; ih < histCount; ++ ih )
-    {
-        fprintf(pf_diff , "%f %d\n" , histXmin+ih*dHistStep+dHistStep/2 , histCounterVec[ih] ) ;
+    {//输出百分比，单位%，值0-100
+        fprintf(pf_diff , "%f %f\n" , histXmin+ih*dHistStep+dHistStep/2 , histCounterVec[ih]*100.f/matchingCount ) ;
     }
     //写入密度文本文件
     for(int ihy = 0 ; ihy < heatysize; ++ ihy )

@@ -22,6 +22,7 @@ SOURCES += \
     ../sharedcodes2/wprocessqueue.cpp \
     ../sharedcodes2/wstringutils.cpp \
     assertlineedit.cpp \
+    computeapu.cpp \
     main.cpp \
     mainwindow.cpp \
     maskvaluevalidator.cpp \
@@ -40,6 +41,7 @@ HEADERS += \
     ../sharedcodes2/wstringutils.h \
     ../sharedcodes2/wtextfilereader.h \
     assertlineedit.h \
+    computeapu.h \
     mainwindow.h \
     maskvaluevalidator.h \
     plotorder.h \

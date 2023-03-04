@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>865</width>
-    <height>744</height>
+    <height>813</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -540,6 +540,12 @@
            </item>
            <item>
             <widget class="QLineEdit" name="lineEditHistXminRE">
+             <property name="maximumSize">
+              <size>
+               <width>50</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <property name="text">
               <string>-0.1</string>
              </property>
@@ -547,6 +553,12 @@
            </item>
            <item>
             <widget class="QLineEdit" name="lineEditHistXmaxRE">
+             <property name="maximumSize">
+              <size>
+               <width>50</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <property name="text">
               <string>0.1</string>
              </property>
@@ -574,7 +586,31 @@
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="lineEditDiffYLabel"/>
+            <widget class="QLineEdit" name="lineEditDiffYLabel">
+             <property name="text">
+              <string>Percent(%)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_41">
+             <property name="text">
+              <string>Y最大值</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="lineEditBiasPlotMaxY">
+             <property name="maximumSize">
+              <size>
+               <width>50</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>75</string>
+             </property>
+            </widget>
            </item>
            <item>
             <widget class="QLabel" name="label_31">
@@ -682,6 +718,19 @@
               <string>0</string>
              </property>
             </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_6">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
            </item>
           </layout>
          </item>
@@ -912,6 +961,84 @@
          <widget class="QPushButton" name="pushButtonLandCover">
           <property name="text">
            <string>浏览</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_6">
+        <property name="bottomMargin">
+         <number>8</number>
+        </property>
+        <item>
+         <widget class="QPushButton" name="pushButtonBrowsePrint">
+          <property name="statusTip">
+           <string>出图程序和绘图模板任何一个为空则出图功能不生效</string>
+          </property>
+          <property name="text">
+           <string>选择出图程序（可选）</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="lineEditMapPrintExe">
+          <property name="statusTip">
+           <string>出图程序和绘图模板任何一个为空则出图功能不生效</string>
+          </property>
+          <property name="text">
+           <string>qgsmapprint_cmdonly.exe</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButtonBrowseQgs">
+          <property name="statusTip">
+           <string>出图程序和绘图模板任何一个为空则出图功能不生效</string>
+          </property>
+          <property name="text">
+           <string>选择空间偏差绘图模板（可选）</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="lineEditQgsTemplate">
+          <property name="statusTip">
+           <string>出图程序和绘图模板任何一个为空则出图功能不生效</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBoxZoom">
+          <property name="text">
+           <string>缩放到数据范围</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBoxClipContent">
+          <property name="text">
+           <string>仅输出内容范围</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_40">
+          <property name="text">
+           <string>DPI(72-600)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="lineEditDpi">
+          <property name="maximumSize">
+           <size>
+            <width>50</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>300</string>
           </property>
          </widget>
         </item>

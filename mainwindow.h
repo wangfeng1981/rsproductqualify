@@ -56,6 +56,14 @@ private slots:
 
     void on_pushButtonOpenOutCSV_clicked();
 
+    //质检方案
+    void on_actionLoadProject_clicked();
+    void on_actionSaveProject_clicked();
+
+    void on_pushButtonBrowsePrint_clicked();
+
+    void on_pushButtonBrowseQgs_clicked();
+
 private:
     Ui::MainWindow *ui;
     int getBandCount(QString filename) ;
