@@ -36,9 +36,17 @@ bool PlotVarReplaceUtil::replace( string inpltfilename , string outfilename , Pl
     {
         float tempy0 = order.linearK * order.scatterXmin + order.linearB ;
         float tempy1 = order.linearK * order.scatterXmax + order.linearB ;
-        ofstream tempofs( templineardatafile.c_str() ) ;
-        tempofs<<order.scatterXmin+0.00000001 <<" "<<tempy0 <<" 0.0\n" ;
-        tempofs<<order.scatterXmax+0.00000001 <<" "<<tempy1 <<" 0.0\n" ;
+        //bugfixed v2.0.3
+        FILE* fitlinepf=fopen(templineardatafile.c_str() , "w") ;
+        if( fitlinepf==0 ){
+            return false ;
+        }
+        fprintf(fitlinepf,"%.4f %.4f 0.0\n" , order.scatterXmin , tempy0 ) ;
+        fprintf(fitlinepf,"%.4f %.4f 0.0\n" , order.scatterXmax , tempy1 ) ;
+        fclose(fitlinepf) ;
+        //ofstream tempofs( templineardatafile.c_str() ) ;
+        //tempofs<<order.scatterXmin+0.00000001 <<" "<<tempy0 <<" 0.0\n" ;
+        //tempofs<<order.scatterXmax+0.00000001 <<" "<<tempy1 <<" 0.0\n" ;
     }
 
     content0 = wStringUtils::replaceString(content0,"{{{fitlinedatafile}}}", templineardatafile ) ;

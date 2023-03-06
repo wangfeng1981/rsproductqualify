@@ -42,7 +42,9 @@ MainWindow::MainWindow(QWidget *parent)
     //5. 直方图Y轴数据改为百分比 0-100 单位% ok
     //6. 增加APU空间图计算参考王圆圆文章 ok
     //7. 空间偏差绘图 ok
-    setWindowTitle("遥感数据质量检验（图像对图像）V2.0.2") ;
+    //setWindowTitle("遥感数据质量检验（图像对图像）V2.0.2") ;
+    //8. scatter fitline 数据需要实数整数不行 bugfixed v2.0.3
+    setWindowTitle("遥感数据质量检验（图像对图像）V2.0.3") ;
 
     QObject::connect( wProcessQueue::getInstance() , &wProcessQueue::progressChanged,
                       this,&MainWindow::progressChanged ) ;
