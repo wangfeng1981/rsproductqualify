@@ -41,8 +41,15 @@ bool PlotVarReplaceUtil::replace( string inpltfilename , string outfilename , Pl
         if( fitlinepf==0 ){
             return false ;
         }
-        fprintf(fitlinepf,"%.4f %.4f 0.0\n" , order.scatterXmin , tempy0 ) ;
-        fprintf(fitlinepf,"%.4f %.4f 0.0\n" , order.scatterXmax , tempy1 ) ;
+        //中间加点
+        int npoints = 10 ;
+        float tempdx = (order.scatterXmax - order.scatterXmin)/npoints ;
+        for(int tip = 0 ; tip < npoints+1;++tip )
+        {
+            float txxx = order.scatterXmin + tip * tempdx ;
+            float tyyy = order.linearK * txxx + order.linearB ;
+            fprintf(fitlinepf,"%.4f %.4f 0.0\n" ,  txxx  , tyyy  ) ;
+        }
         fclose(fitlinepf) ;
         //ofstream tempofs( templineardatafile.c_str() ) ;
         //tempofs<<order.scatterXmin+0.00000001 <<" "<<tempy0 <<" 0.0\n" ;

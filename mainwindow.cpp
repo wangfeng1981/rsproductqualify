@@ -45,6 +45,8 @@ MainWindow::MainWindow(QWidget *parent)
     //setWindowTitle("遥感数据质量检验（图像对图像）V2.0.2") ;
     //8. scatter fitline 数据需要实数整数不行 bugfixed v2.0.3
     setWindowTitle("遥感数据质量检验（图像对图像）V2.0.3") ;
+    //8. scatter fitline v2.0.3 没改好，如果直线两个端点不在x，y range内，gnuplot不画线，只能中间加点。
+    setWindowTitle("遥感数据质量检验（图像对图像）V2.0.4.2") ;//release
 
     QObject::connect( wProcessQueue::getInstance() , &wProcessQueue::progressChanged,
                       this,&MainWindow::progressChanged ) ;
