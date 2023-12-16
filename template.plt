@@ -1,5 +1,5 @@
-#设置输出终端 输出到png文件
-set terminal png size 1024,1024  font "simsun.ttc,12"
+#设置输出终端 输出到pngcairo文件 png驱动不太正常
+set terminal pngcairo size 1024,1024  font "simsun.ttc,12"
 #输出文件名  
 set output '{{{outscatterpngfile}}}'
 
